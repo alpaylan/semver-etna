@@ -39,6 +39,7 @@ rustdoc-args = [
     "--extern-html-root-url=alloc=https://doc.rust-lang.org",
     "--extern-html-root-url=std=https://doc.rust-lang.org",
 ]
+features = ["serde"]
 
 [package.metadata.playground]
 features = ["serde"]
