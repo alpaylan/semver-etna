@@ -98,6 +98,9 @@ mod parse;
 #[cfg(feature = "serde")]
 mod serde;
 
+#[cfg(feature = "std")]
+pub mod etna;
+
 use crate::identifier::Identifier;
 use alloc::vec::Vec;
 use core::cmp::Ordering;

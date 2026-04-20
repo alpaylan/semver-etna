@@ -19,6 +19,12 @@ std = []
 
 [dependencies]
 serde = { package = "serde_core", version = "1.0.220", optional = true, default-features = false }
+# ETNA framework dependencies — linked by src/bin/etna.rs.
+proptest = "1.11.0"
+quickcheck_etna = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck", package = "quickcheck", features = ["etna"] }
+crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck" }
+hegeltest = "0.3.7"
+rand = "0.9"
 
 [target.'cfg(any())'.dependencies]
 serde = { version = "1.0.220", optional = true, default-features = false }
@@ -29,6 +35,17 @@ criterion = { version = "0.8", default-features = false }
 [[bench]]
 name = "parse"
 harness = false
+
+[[bin]]
+name = "etna"
+path = "src/bin/etna.rs"
+
+[profile.release]
+debug = true
+
+[profile.test]
+opt-level = 3
+debug = true
 
 [package.metadata.docs.rs]
 features = ["serde"]
