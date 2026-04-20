@@ -1,0 +1,62 @@
+# ETNA workload index for semver.
+#
+# One [[variant]] per injected mutation. Source of truth for variant -> property
+# mapping. Every other fact is derivable from the source tree:
+#   - ls patches/*.patch                       (patch-based variants)
+#   - grep -rn "pub fn property_" src/etna.rs  (property functions)
+#   - grep -rn "fn witness_.*_case_" tests/    (witness tests)
+#
+# Base commit for this workload is HEAD of master on this tree. Every
+# etna/<variant> branch is master + exactly one patch applied on top.
+#
+# Pre-1.0.0 fixes were skipped: the entire crate was rewritten in commit
+# 3a1b1eb ("Rewrite the crate", 2021-05-24). Surfaces targeted by earlier
+# fix commits no longer exist, so those mutations are terminally
+# inexpressible against the post-rewrite codebase.
+#
+# Candidates scanned but not chosen:
+# - 00c04169 ("Parse x/X as wildcard"): feature addition, not a bug fix.
+# - 02a9ca80 ("isize overflow in pad"): too niche for a PBT invariant.
+# - 9d801cf9 ("Error formatter flags"): cosmetic fmt flag handling.
+
+name = "semver"
+language = "Rust"
+
+[[variant]]
+name = "less_prerelease_5742fc2_1"
+property = "LessRejectsPrerelease"
+injection = "patch"
+patch = "patches/less_prerelease_5742fc2_1.patch"
+source_commit = "5742fc2f584dc14b46199d797de65305fe9b5144"
+witnesses = [
+    "witness_less_rejects_prerelease_case_1_0_0",
+    "witness_less_rejects_prerelease_case_2_5_3",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/eval.rs"]
+
+[[variant]]
+name = "wildcard_patch_digit_a5850bb_1"
+property = "ParseRejectsDigitAfterMinorWildcard"
+injection = "patch"
+patch = "patches/wildcard_patch_digit_a5850bb_1.patch"
+source_commit = "a5850bbd0d1bf6e5ae1ed1310cbe8919fa77d618"
+witnesses = [
+    "witness_parse_rejects_digit_after_minor_wildcard_case_greater_1_0",
+    "witness_parse_rejects_digit_after_minor_wildcard_case_caret_1_0",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/parse.rs"]
+
+[[variant]]
+name = "debug_omits_empty_ae1b06c_1"
+property = "VersionDebugOmitsEmpty"
+injection = "patch"
+patch = "patches/debug_omits_empty_ae1b06c_1.patch"
+source_commit = "ae1b06c8c005345ec9d343ddb0f87f45e61ea4a8"
+witnesses = [
+    "witness_version_debug_omits_empty_case_1_0_0",
+    "witness_version_debug_omits_empty_case_42_7_99",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/display.rs"]

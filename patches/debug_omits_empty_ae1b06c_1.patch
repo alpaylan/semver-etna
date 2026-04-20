@@ -1,0 +1,29 @@
+diff --git a/src/display.rs b/src/display.rs
+index d7446e5..1a6b078 100644
+--- a/src/display.rs
++++ b/src/display.rs
+@@ -90,18 +90,14 @@ impl Display for BuildMetadata {
+ 
+ impl Debug for Version {
+     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+-        let mut debug = formatter.debug_struct("Version");
+-        debug
++        formatter
++            .debug_struct("Version")
+             .field("major", &self.major)
+             .field("minor", &self.minor)
+-            .field("patch", &self.patch);
+-        if !self.pre.is_empty() {
+-            debug.field("pre", &self.pre);
+-        }
+-        if !self.build.is_empty() {
+-            debug.field("build", &self.build);
+-        }
+-        debug.finish()
++            .field("patch", &self.patch)
++            .field("pre", &self.pre)
++            .field("build", &self.build)
++            .finish()
+     }
+ }
+ 
