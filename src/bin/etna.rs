@@ -10,11 +10,10 @@
 // Every invocation prints exactly one JSON line to stdout and exits 0
 // (except argv parsing, which exits 2).
 
-use crabcheck::quickcheck as crabcheck_qc;
 use crabcheck::quickcheck::Arbitrary as CcArbitrary;
 use hegel::{generators as hgen, HealthCheck, Hegel, Settings as HegelSettings, TestCase};
 use proptest::prelude::*;
-use proptest::test_runner::{Config as ProptestConfig, TestCaseError, TestError, TestRunner};
+use proptest::test_runner::{Config as ProptestConfig, TestCaseError, TestError};
 use quickcheck_etna::{Arbitrary as QcArbitrary, Gen, QuickCheck, ResultStatus, TestResult};
 use rand::Rng;
 use semver::etna::{
@@ -230,7 +229,7 @@ fn run_proptest_property(property: &str) -> Outcome {
         failure_persistence: None,
         ..ProptestConfig::default()
     };
-    let mut runner = TestRunner::new(cfg);
+    let mut runner = proptest::test_runner::TestRunner::new(cfg);
     let c = counter.clone();
     let result: Result<(), String> = match property {
         "LessRejectsPrerelease" => runner
@@ -407,19 +406,19 @@ fn run_crabcheck_property(property: &str) -> Outcome {
     }
     CC_COUNTER.store(0, Ordering::Relaxed);
     let t0 = Instant::now();
-    let cc_config = crabcheck_qc::Config {
+    let cc_config = crabcheck::quickcheck::Config {
         tests: cases_budget(),
     };
     let result = match property {
         "LessRejectsPrerelease" => {
-            crabcheck_qc::quickcheck_with_config(cc_config, cc_less_rejects_prerelease)
+            crabcheck::quickcheck::quickcheck_with_config(cc_config, cc_less_rejects_prerelease)
         }
-        "ParseRejectsDigitAfterMinorWildcard" => crabcheck_qc::quickcheck_with_config(
+        "ParseRejectsDigitAfterMinorWildcard" => crabcheck::quickcheck::quickcheck_with_config(
             cc_config,
             cc_parse_rejects_digit_after_minor_wildcard,
         ),
         "VersionDebugOmitsEmpty" => {
-            crabcheck_qc::quickcheck_with_config(cc_config, cc_version_debug_omits_empty)
+            crabcheck::quickcheck::quickcheck_with_config(cc_config, cc_version_debug_omits_empty)
         }
         _ => {
             return (
@@ -431,16 +430,16 @@ fn run_crabcheck_property(property: &str) -> Outcome {
     let elapsed_us = t0.elapsed().as_micros();
     let inputs = CC_COUNTER.load(Ordering::Relaxed);
     let status = match result.status {
-        crabcheck_qc::ResultStatus::Finished => Ok(()),
-        crabcheck_qc::ResultStatus::Failed { arguments } => {
+        crabcheck::quickcheck::ResultStatus::Finished => Ok(()),
+        crabcheck::quickcheck::ResultStatus::Failed { arguments } => {
             Err(format!("({})", arguments.join(" ")))
         }
-        crabcheck_qc::ResultStatus::TimedOut => Err("crabcheck timed out".to_string()),
-        crabcheck_qc::ResultStatus::GaveUp => Err(format!(
+        crabcheck::quickcheck::ResultStatus::TimedOut => Err("crabcheck timed out".to_string()),
+        crabcheck::quickcheck::ResultStatus::GaveUp => Err(format!(
             "crabcheck gave up: passed={}, discarded={}",
             result.passed, result.discarded
         )),
-        crabcheck_qc::ResultStatus::Aborted { error } => {
+        crabcheck::quickcheck::ResultStatus::Aborted { error } => {
             Err(format!("crabcheck aborted: {error}"))
         }
     };
