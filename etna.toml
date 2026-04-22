@@ -1,62 +1,89 @@
-# ETNA workload index for semver.
-#
-# One [[variant]] per injected mutation. Source of truth for variant -> property
-# mapping. Every other fact is derivable from the source tree:
-#   - ls patches/*.patch                       (patch-based variants)
-#   - grep -rn "pub fn property_" src/etna.rs  (property functions)
-#   - grep -rn "fn witness_.*_case_" tests/    (witness tests)
-#
-# Base commit for this workload is HEAD of master on this tree. Every
-# etna/<variant> branch is master + exactly one patch applied on top.
-#
-# Pre-1.0.0 fixes were skipped: the entire crate was rewritten in commit
-# 3a1b1eb ("Rewrite the crate", 2021-05-24). Surfaces targeted by earlier
-# fix commits no longer exist, so those mutations are terminally
-# inexpressible against the post-rewrite codebase.
-#
-# Candidates scanned but not chosen:
-# - 00c04169 ("Parse x/X as wildcard"): feature addition, not a bug fix.
-# - 02a9ca80 ("isize overflow in pad"): too niche for a PBT invariant.
-# - 9d801cf9 ("Error formatter flags"): cosmetic fmt flag handling.
-
 name = "semver"
-language = "Rust"
+language = "rust"
+crate = "semver"
+base_commit = "3cdeed86250359f242f663c68b0e29841f8d2751"
 
-[[variant]]
-name = "less_prerelease_5742fc2_1"
-property = "LessRejectsPrerelease"
-injection = "patch"
-patch = "patches/less_prerelease_5742fc2_1.patch"
-source_commit = "5742fc2f584dc14b46199d797de65305fe9b5144"
-witnesses = [
-    "witness_less_rejects_prerelease_case_1_0_0",
-    "witness_less_rejects_prerelease_case_2_5_3",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+[[tasks]]
+mutations = ["less_prerelease_5742fc2_1"]
+
+[tasks.source]
+repo = "https://github.com/dtolnay/semver"
+commits = ["5742fc2f584dc14b46199d797de65305fe9b5144"]
+commit_subjects = ["Fix <I.J to not match I.J.0 prereleases"]
+summary = "`Op::Less` was evaluated as `!matches_exact && !matches_greater`, which for a patch-less comparator (`<M.m`) against a prerelease collapsed to `true` and accepted `M.m.p-beta`; the fix distinguishes patch-less Less from a full Less comparator so that the whole `M.m` line is excluded."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/eval.rs"]
+locations = [{ file = "src/eval.rs" }]
+patch = "patches/less_prerelease_5742fc2_1.patch"
 
-[[variant]]
-name = "wildcard_patch_digit_a5850bb_1"
-property = "ParseRejectsDigitAfterMinorWildcard"
-injection = "patch"
-patch = "patches/wildcard_patch_digit_a5850bb_1.patch"
-source_commit = "a5850bbd0d1bf6e5ae1ed1310cbe8919fa77d618"
+[tasks.bug]
+short_name = "less_prerelease"
+invariant = "A `VersionReq` of the form `>M.m.p-alpha, <M.m` (Less comparator without a patch component) must NOT match `M.m.p-beta`. The Less comparator with `patch = None` is supposed to exclude the entire `M.m.*` line, even when combined with a prerelease-admitting Greater."
+how_triggered = "The buggy `Op::Less` branch is `!matches_exact && !matches_greater`. For a `<M.m` comparator with `cmp.patch = None`, `matches_greater` returns `false` (early return on the `None` patch) and `matches_exact` returns `false` (version has non-empty pre, cmp does not), so the naive complement yields `true` — the version matches, violating the invariant."
+
+[[tasks.tasks]]
+property = "LessRejectsPrerelease"
 witnesses = [
-    "witness_parse_rejects_digit_after_minor_wildcard_case_greater_1_0",
-    "witness_parse_rejects_digit_after_minor_wildcard_case_caret_1_0",
+  { test_fn = "witness_less_rejects_prerelease_case_1_0_0" },
+  { test_fn = "witness_less_rejects_prerelease_case_2_5_3" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["wildcard_patch_digit_a5850bb_1"]
+
+[tasks.source]
+repo = "https://github.com/dtolnay/semver"
+commits = ["a5850bbd0d1bf6e5ae1ed1310cbe8919fa77d618"]
+commit_subjects = ["Disallow patch version digit after minor version wildcard"]
+summary = "The parser's `UnexpectedAfterWildcard` guard gated on `op == Op::Wildcard`, so when an explicit operator preceded the wildcard (e.g. `>1.*.0`) the guard never fired and the parser silently accepted a concrete patch digit after a minor wildcard."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/parse.rs"]
+locations = [{ file = "src/parse.rs" }]
+patch = "patches/wildcard_patch_digit_a5850bb_1.patch"
 
-[[variant]]
-name = "debug_omits_empty_ae1b06c_1"
-property = "VersionDebugOmitsEmpty"
-injection = "patch"
-patch = "patches/debug_omits_empty_ae1b06c_1.patch"
-source_commit = "ae1b06c8c005345ec9d343ddb0f87f45e61ea4a8"
+[tasks.bug]
+short_name = "wildcard_patch_digit"
+invariant = "A comparator of the form `<op>M.*.P` — where `<op>` is an explicit operator (`>`, `<`, `~`, `^`) and `P` is a concrete digit — must be rejected by the parser. The minor wildcard cannot be followed by a concrete patch component."
+how_triggered = """
+The buggy patch-position check is `op == Op::Wildcard`. When the caller supplied an explicit `<op>`, `op` is `Greater`/`Less`/`Tilde`/`Caret` — never `Wildcard` — so the `UnexpectedAfterWildcard` guard never fires and `">1.*.0"` parses successfully as `op=Greater, minor=None, patch=Some(0)`.
+"""
+
+[[tasks.tasks]]
+property = "ParseRejectsDigitAfterMinorWildcard"
 witnesses = [
-    "witness_version_debug_omits_empty_case_1_0_0",
-    "witness_version_debug_omits_empty_case_42_7_99",
+  { test_fn = "witness_parse_rejects_digit_after_minor_wildcard_case_greater_1_0" },
+  { test_fn = "witness_parse_rejects_digit_after_minor_wildcard_case_caret_1_0" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["debug_omits_empty_ae1b06c_1"]
+
+[tasks.source]
+repo = "https://github.com/dtolnay/semver"
+commits = ["ae1b06c8c005345ec9d343ddb0f87f45e61ea4a8"]
+commit_subjects = ["Customize Debug impl of Version to omit empty pieces"]
+summary = "The derived `Debug for Version` always emitted `pre` and `build` fields, so printing a bare `Version::new(1, 0, 0)` produced the noisy `Prerelease(\"\")` / `BuildMetadata(\"\")` lines; the custom impl drops those fields when they are empty."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/display.rs"]
+locations = [{ file = "src/display.rs" }]
+patch = "patches/debug_omits_empty_ae1b06c_1.patch"
+
+[tasks.bug]
+short_name = "debug_omits_empty"
+invariant = "The `Debug` rendering of a `Version` whose `pre` and `build` identifiers are both empty must be exactly `Version { major: M, minor: m, patch: p }`. Empty pre-release and build-metadata fields must be omitted."
+how_triggered = """
+The buggy `impl Debug for Version` unconditionally chains `.field("pre", &self.pre).field("build", &self.build)`, so `format!("{:?}", Version::new(1, 0, 0))` renders as `Version { major: 1, minor: 0, patch: 0, pre: Prerelease(""), build: BuildMetadata("") }` — including the empty fields the customized impl is supposed to suppress.
+"""
+
+[[tasks.tasks]]
+property = "VersionDebugOmitsEmpty"
+witnesses = [
+  { test_fn = "witness_version_debug_omits_empty_case_1_0_0" },
+  { test_fn = "witness_version_debug_omits_empty_case_42_7_99" },
+]
