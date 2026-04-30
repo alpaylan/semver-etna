@@ -1,5 +1,6 @@
 name = "semver"
 language = "rust"
+strategies = ["proptest", "quickcheck", "crabcheck", "hegel"]
 crate = "semver"
 base_commit = "3cdeed86250359f242f663c68b0e29841f8d2751"
 
